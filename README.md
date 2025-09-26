@@ -2,6 +2,25 @@
 
 **PlaceholderAPI** is a simple library for handling placeholders in Nukkit plugins. It supports both static and dynamic placeholders with parameters.
 
+## API
+
+```xml
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+```
+
+```xml
+<dependency>
+    <groupId>com.github.angga7togk</groupId>
+    <artifactId>PlaceholderAPI-NK</artifactId>
+    <version>Latest</version>
+</dependency>
+```
+
 ## Features
 
 - **StaticPlaceholder**: Placeholders without parameters.
