@@ -2,5 +2,6 @@ name: PlaceholderAPI
 main: com.angga7togk.placeholderapi.PlaceholderAPI
 author: Angga7togk
 version: 1.0.0
-api: [2.0.0, 1.0.0]
+api: 1.0.0
 description: PlaceholderAPI
+softdepend: [LuckPerms, LlamaEconomy]
