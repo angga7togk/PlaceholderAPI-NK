@@ -20,7 +20,10 @@ public class PlaceholderAPI extends PluginBase {
 
   private final Map<String, Placeholder> placeholders = new HashMap<>();
 
-  private final Pattern PLACEHOLDER_PATTERN = Pattern.compile("%([a-zA-Z0-9_]+)(?::([^%]*))?%");
+  private final String PARAM_SEPARATOR = ";";
+
+  private final Pattern PLACEHOLDER_PATTERN = Pattern.compile(
+      "%([a-zA-Z0-9_]+)(?:\\" + PARAM_SEPARATOR + "([^%]*))?%");
 
   private static PlaceholderAPI INSTANCE;
 
@@ -31,14 +34,19 @@ public class PlaceholderAPI extends PluginBase {
   @Override
   public void onLoad() {
     INSTANCE = this;
+  }
+
+  @Override
+  public void onEnable() {
     registerDefaults();
   }
 
+  @Deprecated
   public void registerPlaceholder(String identifier, Placeholder placeholder) {
     placeholders.put(identifier.toLowerCase(), placeholder);
   }
 
-  public String processPlaceholders(Player player, String text) {
+  public String translate(Player player, String text) {
     Matcher matcher = PLACEHOLDER_PATTERN.matcher(text);
     StringBuffer result = new StringBuffer();
 
@@ -48,14 +56,21 @@ public class PlaceholderAPI extends PluginBase {
 
       Placeholder placeholder = placeholders.get(identifier);
       if (placeholder != null) {
-        String[] params = paramsRaw != null ? paramsRaw.split(",") : new String[0];
+        String[] params = paramsRaw != null ? paramsRaw.split(PARAM_SEPARATOR) : new String[0];
         String replacement = placeholder.process(player, params);
-        matcher.appendReplacement(result, replacement != null ? replacement : "");
+        matcher.appendReplacement(
+            result,
+            Matcher.quoteReplacement(replacement != null ? replacement : ""));
       }
     }
 
     matcher.appendTail(result);
     return result.toString();
+  }
+
+  @Deprecated
+  public String processPlaceholders(Player player, String text) {
+    return this.translate(player, text);
   }
 
   public void register(String identifier, Placeholder placeholder) {
@@ -127,40 +142,54 @@ public class PlaceholderAPI extends PluginBase {
     });
 
     /** Luckperms Placeholders */
-    if (this.getServer().getPluginManager().getPlugin("LuckPerms") != null) {
+    if (getServer().getPluginManager().getPlugin("LuckPerms") != null) {
+
       LuckPerms luckPerms = LuckPermsProvider.get();
+
       this.register("luckperms_prefix", (player, params) -> {
-        net.luckperms.api.model.user.User user = luckPerms.getUserManager().getUser(player.getUniqueId());
-        String prefix = user.getCachedData().getMetaData(luckPerms.getContextManager().getQueryOptions(player))
+        var user = luckPerms.getUserManager().getUser(player.getUniqueId());
+        if (user == null)
+          return "";
+
+        String prefix = user.getCachedData()
+            .getMetaData(luckPerms.getContextManager().getQueryOptions(player))
             .getPrefix();
+
         return prefix != null ? prefix : "";
       });
+
       this.register("luckperms_suffix", (player, params) -> {
-        net.luckperms.api.model.user.User user = luckPerms.getUserManager().getUser(player.getUniqueId());
-        String suffix = user.getCachedData().getMetaData(luckPerms.getContextManager().getQueryOptions(player))
+        var user = luckPerms.getUserManager().getUser(player.getUniqueId());
+        if (user == null)
+          return "";
+
+        String suffix = user.getCachedData()
+            .getMetaData(luckPerms.getContextManager().getQueryOptions(player))
             .getSuffix();
+
         return suffix != null ? suffix : "";
       });
+
       this.register("luckperms_primary_group", (player, params) -> {
-        net.luckperms.api.model.user.User user = luckPerms.getUserManager().getUser(player.getUniqueId());
-        return user.getPrimaryGroup();
+        var user = luckPerms.getUserManager().getUser(player.getUniqueId());
+        return user != null ? user.getPrimaryGroup() : "";
       });
     }
 
     // Llama Economy Placeholder
-    if (this.getServer().getPluginManager().getPlugin("LlamaEconomy") != null) {
+    if (getServer().getPluginManager().getPlugin("LlamaEconomy") != null) {
+
       API llama = LlamaEconomy.getAPI();
+
       this.register("llamaeconomy_money", (player, params) -> {
         double money = llama.getMoney(player);
 
-        // kalau ga ada params → angka biasa
-        if (params == null || params.length == 0) {
+        // default → angka biasa
+        if (params.length == 0) {
           return String.valueOf((long) money);
         }
 
-        String param = params[0].toLowerCase();
-
-        switch (param) {
+        switch (params[0].toLowerCase()) {
           case "id":
             return formatCurrency(money, "id", "ID");
           case "us":
@@ -169,8 +198,11 @@ public class PlaceholderAPI extends PluginBase {
             return formatCurrency(money, "ja", "JP");
           case "sg":
             return formatCurrency(money, "en", "SG");
+          case "short":
+            return formatShort(money);
+
           default:
-            return String.valueOf((long) money);
+            return String.valueOf(money);
         }
       });
     }
@@ -182,4 +214,15 @@ public class PlaceholderAPI extends PluginBase {
     NumberFormat format = NumberFormat.getCurrencyInstance(locale);
     return format.format(amount);
   }
+
+  private String formatShort(double value) {
+    if (value >= 1_000_000_000)
+      return String.format("%.1fB", value / 1_000_000_000);
+    if (value >= 1_000_000)
+      return String.format("%.1fM", value / 1_000_000);
+    if (value >= 1_000)
+      return String.format("%.1fK", value / 1_000);
+    return String.valueOf((long) value);
+  }
+
 }
